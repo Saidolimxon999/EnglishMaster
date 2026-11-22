@@ -11,16 +11,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Get source
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
@@ -34,7 +31,28 @@ jobs:
           cp index.html www/index.html
           npx cap init EnglishMaster com.englishmaster.app --web-dir=www
           npx cap add android
-          npx cap sync android
+
+      - name: Add microphone permissions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("android/app/src/main/AndroidManifest.xml")
+          s = p.read_text()
+
+          permissions = """
+              <uses-permission android:name="android.permission.RECORD_AUDIO" />
+              <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+          """
+
+          if "android.permission.RECORD_AUDIO" not in s:
+              s = s.replace("<application", permissions + "\n    <application", 1)
+
+          p.write_text(s)
+          PY
+
+      - name: Sync Capacitor
+        run: npx cap sync android
 
       - name: Build APK
         run: |
@@ -42,7 +60,7 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Save APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: EnglishMaster-APK
